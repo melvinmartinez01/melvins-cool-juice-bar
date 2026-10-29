@@ -1,0 +1,1 @@
+window.API_URL = "https://mjusqrcvaf.execute-api.us-west-1.amazonaws.com";

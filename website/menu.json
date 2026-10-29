@@ -1,0 +1,11 @@
+{
+  "shop": "Melvin's Cool Juice",
+  "items": [
+    { "name": "Carrot Juice", "emoji": "🥕", "description": "Fresh-pressed carrot with a little lemon.", "price": 7.50, "available": true },
+    { "name": "OJ", "emoji": "🍊", "description": "Classic fresh orange juice, no pulp.", "price": 6.50, "available": true },
+    { "name": "Apple", "emoji": "🍎", "description": "Crisp cold-pressed apple.", "price": 6.50, "available": true },
+    { "name": "Mango Banana Kefir", "emoji": "🥭", "description": "Mango and banana blended with kefir.", "price": 8.50, "available": true },
+    { "name": "Ginger Shot", "emoji": "🫚", "description": "Straight ginger with lemon. Small but strong.", "price": 4.00, "available": false },
+    { "name": "Orange Pineapple Apple", "emoji": "🍍", "description": "Orange, pineapple and apple pressed together.", "price": 8.00, "available": true }
+  ]
+}

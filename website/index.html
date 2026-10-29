@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Melvin's Cool Juice</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="config.js"></script>
+</head>
+<body>
+  <header>
+    <h1>🧃 Melvin's Cool Juice</h1>
+    <p>Order ahead. Pick ice or no ice. We'll let you know when it's ready.</p>
+    <span class="builtby">Built by Melvin Martinez Lorenzo · CS 79C Final Project</span>
+  </header>
+  <main>
+    <h2>Menu</h2>
+    <div id="menu" class="grid">Loading menu…</div>
+    <section class="panel">
+      <h2>Your order</h2>
+      <ul id="cart" class="cart-list"></ul>
+      <p id="empty" class="meta">Nothing added yet.</p>
+      <div class="row" style="margin-bottom:10px"><strong>Total</strong><strong id="total">$0.00</strong></div>
+      <input id="name" type="text" maxlength="30" placeholder="Name for the order">
+      <div style="margin-top:10px"><button id="place" disabled>Place order</button></div>
+      <div id="msg" class="msg"></div>
+    </section>
+  </main>
+  <footer>Menu served from Amazon S3 · Orders go through API Gateway → Lambda → DynamoDB</footer>
+  <script>
+    const API = window.API_URL;
+    const cart = [];
+    function el(tag, props = {}, ...children) {
+      const node = document.createElement(tag);
+      Object.assign(node, props);
+      for (const c of children) node.append(c);
+      return node;
+    }
+    // 1) Load the menu from S3
+    async function loadMenu() {
+      const menuBox = document.getElementById("menu");
+      try {
+        const res = await fetch("menu.json", { cache: "no-store" });
+        const menu = await res.json();
+        menuBox.textContent = "";
+        for (const item of menu.items) menuBox.append(menuCard(item));
+      } catch (err) { menuBox.textContent = "Could not load the menu."; }
+    }
+    function menuCard(item) {
+      const card = el("div", { className: "card" + (item.available ? "" : " soldout") },
+        el("div", { className: "emoji", textContent: item.emoji }),
+        el("h3", { textContent: item.name }),
+        el("p", { textContent: item.description }));
+      const bottom = el("div", { className: "row" },
+        el("span", { className: "price", textContent: "$" + item.price.toFixed(2) }));
+      if (!item.available) {
+        bottom.append(el("span", { className: "badge out", textContent: "Sold out" }));
+        card.append(bottom);
+        return card;
+      }
+      const ice = el("input", { type: "checkbox", checked: true });   // ice: true/false
+      const add = el("button", { textContent: "Add" });
+      add.onclick = () => { cart.push({ juice: item.name, ice: ice.checked, price: item.price }); renderCart(); };
+      card.append(el("label", {}, ice, " Ice"), bottom);
+      bottom.append(add);
+      return card;
+    }
+    function renderCart() {
+      const list = document.getElementById("cart");
+      list.textContent = "";
+      cart.forEach((line, i) => {
+        const remove = el("button", { className: "small", textContent: "Remove" });
+        remove.onclick = () => { cart.splice(i, 1); renderCart(); };
+        list.append(el("li", { className: "row" },
+          el("span", { textContent: `${line.juice} — ${line.ice ? "ice" : "no ice"}` }), remove));
+      });
+      const total = cart.reduce((sum, l) => sum + l.price, 0);
+      document.getElementById("total").textContent = "$" + total.toFixed(2);
+      document.getElementById("empty").style.display = cart.length ? "none" : "block";
+      document.getElementById("place").disabled = cart.length === 0;
+    }
+    // 2) Send the order through API Gateway: POST /orders
+    document.getElementById("place").onclick = async () => {
+      const msg = document.getElementById("msg");
+      const name = document.getElementById("name").value.trim();
+      if (!name) { msg.className = "msg err"; msg.textContent = "Add a name for the order."; return; }
+      const button = document.getElementById("place");
+      button.disabled = true;
+      msg.className = "msg"; msg.textContent = "Sending order…";
+      try {
+        const res = await fetch(`${API}/orders`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ customerName: name, items: cart.map(l => ({ juice: l.juice, ice: l.ice })) })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Order failed");
+        msg.className = "msg ok";
+        msg.textContent = `✅ ${data.message}. Thanks, ${name}!`;
+        cart.length = 0;
+        renderCart();
+      } catch (err) {
+        msg.className = "msg err";
+        msg.textContent = "Order failed: " + err.message;
+        button.disabled = cart.length === 0;
+      }
+    };
+    loadMenu();
+    renderCart();
+  </script>
+</body>
+</html>

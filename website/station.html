@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Station Tablet · Melvin's Cool Juice</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="config.js"></script>
+</head>
+<body>
+  <header>
+    <h1>📋 Station Tablet — Open Orders</h1>
+    <p>Late = over 10 min (4 items or fewer) or over 20 min (5+ items). Refreshes every 5 seconds.</p>
+    <span class="builtby">Built by Melvin Martinez Lorenzo · CS 79C Final Project</span>
+  </header>
+  <main>
+    <div class="row" style="margin-bottom:12px"><h2 id="count">Loading…</h2><span id="updated" class="meta"></span></div>
+    <div id="tickets" class="tickets"></div>
+    <div id="msg" class="msg"></div>
+  </main>
+  <footer>GET /orders and POST /orders/{id}/done through API Gateway</footer>
+  <script>
+    const API = window.API_URL;
+    function el(tag, props = {}, ...children) {
+      const node = document.createElement(tag);
+      Object.assign(node, props);
+      for (const c of children) node.append(c);
+      return node;
+    }
+    // Same rule the Late-Order Lambda uses
+    function limitSeconds(itemCount) { return itemCount <= 4 ? 10 * 60 : 20 * 60; }
+    // GET /orders - ask for open orders
+    async function loadOrders() {
+      const msg = document.getElementById("msg");
+      try {
+        const res = await fetch(`${API}/orders`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Could not load orders");
+        render(data.orders);
+        msg.textContent = "";
+        document.getElementById("updated").textContent = "Updated " + new Date().toLocaleTimeString();
+      } catch (err) {
+        msg.className = "msg err";
+        msg.textContent = "Could not reach the order system: " + err.message;
+      }
+    }
+    function render(orders) {
+      const now = Date.now() / 1000;
+      const box = document.getElementById("tickets");
+      box.textContent = "";
+      document.getElementById("count").textContent = orders.length === 1 ? "1 open order" : `${orders.length} open orders`;
+      for (const order of orders) {
+        const waited = Math.floor((now - order.createdAt) / 60);
+        const late = now - order.createdAt > limitSeconds(order.itemCount);
+        const items = el("ul");
+        for (const i of order.items) items.append(el("li", { textContent: `${i.juice} — ${i.ice ? "ice" : "no ice"}` }));
+        const done = el("button", { textContent: "Done ✓" });
+        done.onclick = () => markDone(order.orderId, done);
+        const title = el("div", { className: "row" }, el("h3", { textContent: `#${order.orderId} · ${order.customerName}` }));
+        if (late) title.append(el("span", { className: "badge late", textContent: "LATE" }));
+        box.append(el("div", { className: "card ticket" + (late ? " late" : "") },
+          title,
+          el("div", { className: "meta", textContent: `${order.itemCount} item${order.itemCount === 1 ? "" : "s"} · waiting ${waited} min · limit ${limitSeconds(order.itemCount) / 60} min` }),
+          items, done));
+      }
+    }
+    // POST /orders/{id}/done - station taps the order off
+    async function markDone(orderId, button) {
+      button.disabled = true;
+      try {
+        const res = await fetch(`${API}/orders/${encodeURIComponent(orderId)}/done`, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Could not mark done");
+      } catch (err) {
+        const msg = document.getElementById("msg");
+        msg.className = "msg err";
+        msg.textContent = err.message;
+      }
+      loadOrders();
+    }
+    loadOrders();
+    setInterval(loadOrders, 5000);
+  </script>
+</body>
+</html>

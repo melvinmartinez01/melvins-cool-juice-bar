@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Melvin's Cool Juice - order log (DynamoDB) and notifications (SNS)
+
+Parameters:
+  NotificationEmail:
+    Type: String
+    Description: Email that gets "order done" and "late order" alerts
+
+Resources:
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: melvins-cool-juice-orders
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: orderId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: orderId
+          KeyType: HASH
+
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: melvins-cool-juice-notifications
+
+  EmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref NotificationTopic
+      Protocol: email
+      Endpoint: !Ref NotificationEmail
+
+Outputs:
+  TableName:
+    Value: !Ref OrdersTable
+  TopicArn:
+    Value: !Ref NotificationTopic
